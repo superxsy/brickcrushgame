@@ -355,30 +355,30 @@ class MatchThreeGame {
     bindEvents() {
         const gameBoard = document.getElementById('game-board');
         
-        // 点击事件
-        gameBoard.addEventListener('click', (e) => {
-            if (e.target.classList.contains('gem') && !this.isAnimating && !this.isDragging) {
-                this.handleGemClick(e.target);
-            }
-        });
+        // 点击事件 - 禁用，因为我们通过mouseup处理点击
+        // gameBoard.addEventListener('click', (e) => {
+        //     if (e.target.classList.contains('gem') && !this.isAnimating && !this.isDragging) {
+        //         this.handleGemClick(e.target);
+        //     }
+        // });
         
         // 拖拽事件
         gameBoard.addEventListener('mousedown', (e) => {
             if (e.target.classList.contains('gem') && !this.isAnimating) {
-                this.handleDragStart(e);
+                this.handleMouseDown(e);
             }
         });
         
         // 将mousemove和mouseup绑定到document，确保拖拽到游戏板外也能正常工作
         document.addEventListener('mousemove', (e) => {
-            if (this.isDragging) {
-                this.handleDragMove(e);
+            if (this.mouseDownGem) {
+                this.handleMouseMove(e);
             }
         });
         
         document.addEventListener('mouseup', (e) => {
-            if (this.isDragging) {
-                this.handleDragEnd(e);
+            if (this.mouseDownGem) {
+                this.handleMouseUp(e);
             }
         });
         
@@ -416,6 +416,8 @@ class MatchThreeGame {
         const row = parseInt(gemElement.dataset.row);
         const col = parseInt(gemElement.dataset.col);
         
+        console.log('点击宝石:', row, col, '当前选中:', this.selectedGem);
+        
         // 如果处于道具模式，使用道具
         if (this.powerUpMode && this.activePowerUp) {
             this.usePowerUp(this.activePowerUp, row, col);
@@ -425,16 +427,20 @@ class MatchThreeGame {
         if (!this.selectedGem) {
             this.selectedGem = { row, col, element: gemElement };
             gemElement.classList.add('selected');
+            console.log('选中宝石:', row, col);
         } else {
             if (this.selectedGem.row === row && this.selectedGem.col === col) {
                 // 取消选择
                 this.selectedGem.element.classList.remove('selected');
                 this.selectedGem = null;
+                console.log('取消选择');
             } else if (this.isAdjacent(this.selectedGem.row, this.selectedGem.col, row, col)) {
                 // 尝试交换
+                console.log('尝试交换:', this.selectedGem.row, this.selectedGem.col, '->', row, col);
                 this.attemptSwap(this.selectedGem.row, this.selectedGem.col, row, col);
             } else {
                 // 选择新的宝石
+                console.log('选择新宝石:', row, col);
                 this.selectedGem.element.classList.remove('selected');
                 this.selectedGem = { row, col, element: gemElement };
                 gemElement.classList.add('selected');
@@ -442,65 +448,99 @@ class MatchThreeGame {
         }
     }
     
-    handleDragStart(e) {
+    handleMouseDown(e) {
         e.preventDefault();
-        this.isDragging = true;
-        this.dragStartGem = {
+        // 只记录鼠标按下信息，不立即进入拖拽状态
+        this.mouseDownGem = {
             element: e.target,
             row: parseInt(e.target.dataset.row),
             col: parseInt(e.target.dataset.col),
             startX: e.clientX,
-            startY: e.clientY
+            startY: e.clientY,
+            startTime: Date.now()
         };
-        
-        // 清除之前的选择
-        if (this.selectedGem) {
-            this.selectedGem.element.classList.remove('selected');
-            this.selectedGem = null;
-        }
-        
-        // 添加拖拽样式
-        e.target.classList.add('dragging');
-        e.target.style.zIndex = '1000';
+        this.isDragging = false;
     }
     
-    handleDragMove(e) {
-        if (!this.dragStartGem || !this.isDragging) return;
+    handleMouseMove(e) {
+        if (!this.mouseDownGem) return;
         
-        const deltaX = e.clientX - this.dragStartGem.startX;
-        const deltaY = e.clientY - this.dragStartGem.startY;
+        const deltaX = e.clientX - this.mouseDownGem.startX;
+        const deltaY = e.clientY - this.mouseDownGem.startY;
+        const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+        const timeInterval = Date.now() - this.mouseDownGem.startTime;
         
-        // 移动宝石
-        this.dragStartGem.element.style.transform = `translate(${deltaX}px, ${deltaY}px)`;
-        
-        // 检测拖拽到的目标位置
-        const targetElement = document.elementFromPoint(e.clientX, e.clientY);
-        
-        // 移除之前的拖拽目标高亮
-        document.querySelectorAll('.drag-target').forEach(el => {
-            el.classList.remove('drag-target');
-        });
-        
-        if (targetElement && targetElement.classList.contains('gem') && targetElement !== this.dragStartGem.element) {
-            const targetRow = parseInt(targetElement.dataset.row);
-            const targetCol = parseInt(targetElement.dataset.col);
+        // 如果时间超过200ms且移动距离超过5px，开始拖拽
+        if (!this.isDragging && timeInterval >= 200 && distance > 5) {
+            this.isDragging = true;
             
-            // 检查是否相邻
-            if (this.isAdjacent(this.dragStartGem.row, this.dragStartGem.col, targetRow, targetCol)) {
-                targetElement.classList.add('drag-target');
+            // 清除之前的选择
+            if (this.selectedGem) {
+                this.selectedGem.element.classList.remove('selected');
+                this.selectedGem = null;
+            }
+            
+            // 添加拖拽样式
+            this.mouseDownGem.element.classList.add('dragging');
+            this.mouseDownGem.element.style.zIndex = '1000';
+        }
+        
+        // 如果已经在拖拽状态，更新位置
+        if (this.isDragging) {
+            // 移动宝石
+            this.mouseDownGem.element.style.transform = `translate(${deltaX}px, ${deltaY}px)`;
+            
+            // 检测拖拽到的目标位置
+            const targetElement = document.elementFromPoint(e.clientX, e.clientY);
+            
+            // 移除之前的拖拽目标高亮
+            document.querySelectorAll('.drag-target').forEach(el => {
+                el.classList.remove('drag-target');
+            });
+            
+            if (targetElement && targetElement.classList.contains('gem') && targetElement !== this.mouseDownGem.element) {
+                const targetRow = parseInt(targetElement.dataset.row);
+                const targetCol = parseInt(targetElement.dataset.col);
+                
+                // 检查是否相邻
+                if (this.isAdjacent(this.mouseDownGem.row, this.mouseDownGem.col, targetRow, targetCol)) {
+                    targetElement.classList.add('drag-target');
+                }
             }
         }
     }
     
-    handleDragEnd(e) {
-        if (!this.dragStartGem || !this.isDragging) return;
+    handleMouseUp(e) {
+        if (!this.mouseDownGem) return;
         
-        console.log('拖拽结束 - 起始位置:', this.dragStartGem.row, this.dragStartGem.col);
+        const timeInterval = Date.now() - this.mouseDownGem.startTime;
+        console.log('鼠标松开 - 时间间隔:', timeInterval + 'ms', '是否拖拽:', this.isDragging);
+        
+        if (this.isDragging) {
+            // 执行拖拽结束逻辑
+            this.handleDragEnd(e);
+        } else {
+            // 检查鼠标松开位置是否与按下位置相同
+            const currentElement = document.elementFromPoint(e.clientX, e.clientY);
+            if (currentElement && currentElement === this.mouseDownGem.element) {
+                // 执行点击逻辑
+                console.log('执行点击操作');
+                this.handleGemClick(this.mouseDownGem.element);
+            }
+        }
+        
+        // 重置状态
+        this.mouseDownGem = null;
+        this.isDragging = false;
+    }
+    
+    handleDragEnd(e) {
+        console.log('拖拽结束 - 起始位置:', this.mouseDownGem.row, this.mouseDownGem.col);
         
         // 重置拖拽样式
-        this.dragStartGem.element.classList.remove('dragging');
-        this.dragStartGem.element.style.transform = '';
-        this.dragStartGem.element.style.zIndex = '';
+        this.mouseDownGem.element.classList.remove('dragging');
+        this.mouseDownGem.element.style.transform = '';
+        this.mouseDownGem.element.style.zIndex = '';
         
         // 移除拖拽目标高亮
         document.querySelectorAll('.drag-target').forEach(el => {
@@ -508,38 +548,30 @@ class MatchThreeGame {
         });
         
         // 计算拖拽距离和方向
-        const deltaX = e.clientX - this.dragStartGem.startX;
-        const deltaY = e.clientY - this.dragStartGem.startY;
+        const deltaX = e.clientX - this.mouseDownGem.startX;
+        const deltaY = e.clientY - this.mouseDownGem.startY;
         const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
         
         console.log('拖拽距离:', distance, '方向:', deltaX, deltaY);
-        
-        // 如果拖拽距离太小，视为点击而非拖拽
-        if (distance < 20) {
-            console.log('拖拽距离太小，视为点击');
-            this.isDragging = false;
-            this.dragStartGem = null;
-            return;
-        }
         
         // 改进的目标检测逻辑
         let targetElement = null;
         let detectionMethod = '';
         
         // 方法1：临时隐藏拖拽元素进行精确检测
-        const originalDisplay = this.dragStartGem.element.style.display;
-        this.dragStartGem.element.style.display = 'none';
+        const originalDisplay = this.mouseDownGem.element.style.display;
+        this.mouseDownGem.element.style.display = 'none';
         
         const elementUnderMouse = document.elementFromPoint(e.clientX, e.clientY);
         
-        this.dragStartGem.element.style.display = originalDisplay;
+        this.mouseDownGem.element.style.display = originalDisplay;
         
         if (elementUnderMouse && elementUnderMouse.classList.contains('gem')) {
             const mouseTargetRow = parseInt(elementUnderMouse.dataset.row);
             const mouseTargetCol = parseInt(elementUnderMouse.dataset.col);
             
             // 只有当检测到的元素确实相邻时才使用精确检测结果
-            if (this.isAdjacent(this.dragStartGem.row, this.dragStartGem.col, mouseTargetRow, mouseTargetCol)) {
+            if (this.isAdjacent(this.mouseDownGem.row, this.mouseDownGem.col, mouseTargetRow, mouseTargetCol)) {
                 targetElement = elementUnderMouse;
                 detectionMethod = '精确检测';
             } else {
@@ -551,8 +583,8 @@ class MatchThreeGame {
         if (!targetElement) {
             // 方法2：基于拖拽方向的智能检测
             const threshold = 25;
-            let targetRow = this.dragStartGem.row;
-            let targetCol = this.dragStartGem.col;
+            let targetRow = this.mouseDownGem.row;
+            let targetCol = this.mouseDownGem.col;
             
             if (Math.abs(deltaX) > Math.abs(deltaY)) {
                 // 水平拖拽
@@ -568,7 +600,7 @@ class MatchThreeGame {
             
             if (targetRow >= 0 && targetRow < this.boardSize && 
                 targetCol >= 0 && targetCol < this.boardSize &&
-                (targetRow !== this.dragStartGem.row || targetCol !== this.dragStartGem.col)) {
+                (targetRow !== this.mouseDownGem.row || targetCol !== this.mouseDownGem.col)) {
                 targetElement = this.board[targetRow][targetCol].element;
                 detectionMethod = '方向检测';
             }
@@ -577,29 +609,25 @@ class MatchThreeGame {
         console.log('检测方法:', detectionMethod);
         
         // 尝试交换
-        if (targetElement && targetElement !== this.dragStartGem.element) {
+        if (targetElement && targetElement !== this.mouseDownGem.element) {
             const targetRow = parseInt(targetElement.dataset.row);
             const targetCol = parseInt(targetElement.dataset.col);
             
             console.log('目标位置:', targetRow, targetCol);
             
             // 检查是否相邻
-            const isAdjacent = this.isAdjacent(this.dragStartGem.row, this.dragStartGem.col, targetRow, targetCol);
+            const isAdjacent = this.isAdjacent(this.mouseDownGem.row, this.mouseDownGem.col, targetRow, targetCol);
             console.log('是否相邻:', isAdjacent);
             
             if (isAdjacent) {
                 console.log('执行交换');
-                this.attemptSwap(this.dragStartGem.row, this.dragStartGem.col, targetRow, targetCol);
+                this.attemptSwap(this.mouseDownGem.row, this.mouseDownGem.col, targetRow, targetCol);
             } else {
                 console.log('不相邻，交换失败');
             }
         } else {
             console.log('未找到有效目标');
         }
-        
-        // 重置拖拽状态
-        this.isDragging = false;
-        this.dragStartGem = null;
     }
     
     isAdjacent(row1, col1, row2, col2) {
