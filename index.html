@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>三消游戏</title>
+    <link rel="icon" type="image/svg+xml" href="favicon.ico">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="game-container">
+        <div class="header">
+            <h1>✨ 魔法三消 ✨</h1>
+            <div class="score-board">
+                <div class="score">
+                    <span>得分: </span>
+                    <span id="score">0</span>
+                </div>
+                <div class="level">
+                    <span>等级: </span>
+                    <span id="level">1</span>
+                </div>
+                <div class="moves">
+                    <span>剩余步数: </span>
+                    <span id="moves">30</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="game-board-container">
+            <div id="game-board" class="game-board"></div>
+            <div id="particles-container" class="particles-container"></div>
+        </div>
+        
+        <!-- 道具面板 -->
+        <div class="power-ups">
+            <div class="power-up-row">
+                <div class="power-up" id="bomb-power" data-type="bomb">
+                    <div class="power-up-icon">💣</div>
+                    <div class="power-up-count" id="bomb-count">0</div>
+                </div>
+                <div class="power-up" id="lightning-power" data-type="lightning">
+                    <div class="power-up-icon">⚡</div>
+                    <div class="power-up-count" id="lightning-count">0</div>
+                </div>
+                <div class="power-up" id="rainbow-power" data-type="rainbow">
+                    <div class="power-up-icon">🌈</div>
+                    <div class="power-up-count" id="rainbow-count">0</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="controls">
+                <button id="restart-btn" class="btn">重新开始</button>
+                <button id="hint-btn" class="btn">提示</button>
+                <button id="music-toggle" class="btn">🎵 音乐</button>
+                <button id="sound-toggle" class="btn">🔊 音效</button>
+            </div>
+        
+        <!-- 音频元素 -->
+        <audio id="bgm" loop volume="0.3"></audio>
+        <audio id="match-sound" preload="auto" volume="0.5"></audio>
+        <audio id="swap-sound" preload="auto" volume="0.4"></audio>
+        <audio id="combo-sound" preload="auto" volume="0.6"></audio>
+        <audio id="level-up-sound" preload="auto" volume="0.7"></audio>
+        
+        <div id="game-over" class="game-over hidden">
+            <div class="game-over-content">
+                <h2>游戏结束!</h2>
+                <p>最终得分: <span id="final-score">0</span></p>
+                <button id="play-again" class="btn">再玩一次</button>
+            </div>
+        </div>
+    </div>
+    
+    <script src="script.js"></script>
+</body>
+</html>
